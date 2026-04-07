@@ -1,0 +1,46 @@
+// ... (前段 Import 與 State 定義)
+const [syncTotalCount, setSyncTotalCount] = useState(0);
+const [syncImageCount, setSyncImageCount] = useState(0);
+
+// ... (核心同步邏輯 handleRemoteSync)
+const handleRemoteSync = async () => {
+    setIsLoading(true);
+    try {
+        const response = await fetch(syncUrl);
+        const remoteData = await response.json();
+        
+        if (remoteData && remoteData.questions) {
+            // 執行同步與合併邏輯
+            const mergedQuestions = remoteData.questions; 
+            Storage.saveQuestions(mergedQuestions);
+            
+            // 【關鍵：即時計算總數與圖題數】
+            const totalCount = mergedQuestions.length; // 這裡會抓到最新的 830 題
+            const imageCount = mergedQuestions.filter(q => {
+                const possibleFields = ['image_url', 'image', 'img', 'imageUrl'];
+                return Object.keys(q).some(key => 
+                    possibleFields.includes(key.toLowerCase()) && 
+                    q[key] && q[key] !== 'null'
+                );
+            }).length; // 這裡會抓到最新的 56 題圖題
+
+            setSyncTotalCount(totalCount);
+            setSyncImageCount(imageCount);
+            setShowSyncSuccess(true); // 顯示您要求的統計視窗
+        }
+    } catch (err) {
+        setSyncErrorMsg("同步失敗，請檢查網路或網址");
+    } finally {
+        setIsLoading(false);
+    }
+};
+
+// ... (後段 UI 渲染部分)
+{showSyncSuccess && (
+    <div className="sync-modal">
+        <h3>雲端同步完成！</h3>
+        <p>目前題目總計：{syncTotalCount} 題</p>
+        <p>其中含圖片題目：{syncImageCount} 題</p>
+        <button onClick={() => setShowSyncSuccess(false)}>確認</button>
+    </div>
+)}
